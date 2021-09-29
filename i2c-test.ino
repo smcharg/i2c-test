@@ -1,8 +1,10 @@
 /*
 I2C test routine
+Sidney McHarg
+September 28, 2021
 */
 
-#define VERSION "Vrs 0.1c"
+#define VERSION "Vrs 0.1d"
 
 #define MODE_PIN        3       // tie to ground if device is slave 
 #define SLAVE_ADDRESS   0    // default slave address, if 0 will be assigned dynamically
