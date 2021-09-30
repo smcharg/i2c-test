@@ -1,6 +1,6 @@
 {
     "configuration": "cpu=atmega328",
     "board": "arduino:avr:nano",
-    "port": "/dev/cu.usbserial-14140",
+    "port": "/dev/cu.usbserial-1420",
     "sketch": "i2c-test.ino"
 }

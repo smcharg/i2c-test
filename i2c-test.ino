@@ -4,7 +4,7 @@ Sidney McHarg
 September 28, 2021
 */
 
-#define VERSION "Vrs 0.1d"
+#define VERSION "Vrs 0.1e"
 
 #define MODE_PIN        3       // tie to ground if device is slave 
 #define SLAVE_ADDRESS   0    // default slave address, if 0 will be assigned dynamically
@@ -28,12 +28,25 @@ byte buffer[MAX_LEN];
 
 boolean mode;                   // master or slave
 
+//function declarations
+void wireRequest(void);
+void wireReceive(int len);
+void scanBus(void);
+void performTest(void);
+void printBuffer(byte buffer[],size_t len);
+String hexString(byte b);
+void flashLED(byte ledstate);
+
 void setup()
 {
     Serial.begin(115200);
     while (!Serial);
     Serial.println("\nI2C Test " VERSION);
     Serial.println("Wire BUFFER_LENGTH = " + String(BUFFER_LENGTH));
+
+    // set activity LED
+    pinMode(LED_BUILTIN,OUTPUT);
+    flashLED(LOW);
 
     // determine role
     pinMode(MODE_PIN, INPUT_PULLUP);
@@ -50,9 +63,9 @@ void setup()
         }
         Serial.println("Slave address set to 0x" + hexString(slaveAddress));
         Wire.begin(slaveAddress);
-        // slave work all performed in loop()
         Wire.onRequest(wireRequest);
         Wire.onReceive(wireReceive);
+        // slave work all performed by call backs
         return;
     }
     else
@@ -61,21 +74,23 @@ void setup()
         Wire.begin();
         scanBus();
         performTest();
-        Serial.println("Tests completed\nReset master to repeat");
+        Serial.println("Tests completed\nReset master node to repeat");
     }
 
 }
 
 void loop()
 {
-    // slave role
+    // slave will loop here with work being done in the call backs
     ;
     
 }
 
+
 void wireRequest()
 {
     // slave has received a request
+    flashLED(HIGH);
     Serial.print("Request received, replying with ");
     /*
     size_t reqlen = Wire.available();
@@ -93,11 +108,13 @@ void wireRequest()
         Wire.clearWriteError();
     }
     printBuffer(buffer,rslt);
+    flashLED(LOW);
 }
 
 void wireReceive(int len)
 {
     // slave has received data
+    flashLED(HIGH);
     Serial.print("Data received, ");
     Serial.print("length = " + String(len));
     size_t reclen = Wire.available();
@@ -107,21 +124,7 @@ void wireReceive(int len)
         reclen = MAX_LEN;
     size_t rslt = Wire.readBytes(buffer,reclen);
     printBuffer(buffer,rslt);
-}
-
-void printBuffer(byte buffer[],size_t len)
-{
-    size_t i;
-    for (i = 0; i < len; i++)
-    {
-        Serial.print(hexString(buffer[i]));
-        if (((i%16) == 15))
-            Serial.print("\n");
-        else    
-            Serial.print(" ");
-    }
-    if  ((i%16) != 0)
-        Serial.println();
+    flashLED(LOW);
 }
 
 void scanBus()
@@ -168,13 +171,16 @@ void performTest()
         buffer[sz] = sz;
     
     // perform transmission tests
+    Serial.println("\nPerforming transmit to slave tests");
     for (sz = 1; sz <= MAX_LEN; sz *= 2)
     {
+        flashLED(HIGH);
         Wire.beginTransmission(slaveAddress);
         //Wire.write(buffer,sz);
         for (size_t i = 0; i < sz; i++)
             Wire.write(buffer[i]);
         byte error = Wire.endTransmission();
+        flashLED(LOW);
         Serial.print("Write of " + String(sz) + " ");
         switch (error)
         {
@@ -200,16 +206,38 @@ void performTest()
             Serial.println("WriteError reported");
             Wire.clearWriteError();
         }
+
+        delay(500);
     }
 
     // perform requestFrom test
+    Serial.println("\nPerforming requestFrom slave tests");
     for (sz = 1; sz <= MAX_LEN; sz *= 2)
     {
+        flashLED(HIGH);
         size_t rslt = Wire.requestFrom(slaveAddress,sz);
-        Serial.println("Requestfrom for " + String(sz) + " = " + String(rslt));
+        Serial.println("Requestfrom for " + String(sz) + " read " + String(rslt));
         Wire.readBytes(buffer,rslt);
+        flashLED(LOW);
         printBuffer(buffer,rslt);
+
+        delay(500);
     }
+}
+
+void printBuffer(byte buffer[],size_t len)
+{
+    size_t i;
+    for (i = 0; i < len; i++)
+    {
+        Serial.print(hexString(buffer[i]));
+        if (((i%16) == 15))
+            Serial.print("\n");
+        else    
+            Serial.print(" ");
+    }
+    if  ((i%16) != 0)
+        Serial.println();
 }
 
 static char hexDigits[] = 
@@ -218,4 +246,9 @@ static char hexDigits[] =
 String hexString(byte b)
 {
     return(String(hexDigits[b>>4]) + String(hexDigits[b&0xf]));
+}
+
+inline void flashLED(byte ledstate)
+{
+    digitalWrite(LED_BUILTIN,ledstate);
 }
